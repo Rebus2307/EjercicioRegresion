@@ -1,94 +1,181 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+# ==========================
+# IMPORTACIÓN DE LIBRERÍAS
+# ==========================
+
+import pandas as pd                  # Manejo de datos en estructuras tipo DataFrame
+import numpy as np                   # Operaciones numéricas
+import matplotlib.pyplot as plt      # Gráficas
+import seaborn as sns                # Gráficas estadísticas más estilizadas
+from sklearn.model_selection import train_test_split  # Para dividir datos en entrenamiento y prueba
+from sklearn.linear_model import LinearRegression     # Modelo de regresión lineal
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score  # Métricas
+
+import tkinter as tk                 # Para crear la interfaz gráfica
+from tkinter import messagebox       # Para mostrar mensajes emergentes
+
+
+# ==========================
+# FUNCIÓN PARA CARGAR DATOS
+# ==========================
 
 def load_data(dataset):
-    if dataset == '1':
-        # Load the home rental dataset
+    """
+    Carga el archivo CSV dependiendo de la opción seleccionada.
+    """
+    if dataset == 'home':
         data = pd.read_csv('home-rental.csv')
-    elif dataset == '2':
-        # Load the ice cream dataset
+    elif dataset == 'ice':
         data = pd.read_csv('ice-cream.csv')
     else:
-        raise ValueError("Invalid option. Select '1' for home-rental or '2' for ice-cream.")
+        raise ValueError("Opción inválida.")
+    
     return data
 
+
+# ==========================
+# FUNCIÓN PARA REALIZAR REGRESIÓN
+# ==========================
+
 def perform_regression(data, target_column=None, feature_columns=None):
-    # automatically choose numeric columns if none provided
+    """
+    Realiza una regresión lineal sobre el dataset recibido.
+    """
+
+    # Selecciona únicamente columnas numéricas
     numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
+
     if not numeric_cols:
-        raise ValueError("Dataset does not contain any numeric columns for regression")
+        raise ValueError("El dataset no contiene columnas numéricas.")
 
-    # determine target column
+    # Si no se especifica variable objetivo, toma la última numérica
     if target_column is None:
-        # default to last numeric column
         target_column = numeric_cols[-1]
-    if target_column not in numeric_cols:
-        raise ValueError(f"Target column '{target_column}' is not numeric or not present in data")
 
-    # determine feature columns
+    # Las variables independientes serán todas menos la variable objetivo
     if feature_columns is None:
         feature_columns = [c for c in numeric_cols if c != target_column]
-    if not feature_columns:
-        raise ValueError("No feature columns are available after excluding the target")
 
+    # X = variables independientes
     X = data[feature_columns]
+
+    # y = variable dependiente (lo que queremos predecir)
     y = data[target_column]
 
-    # Split the data
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # Divide los datos:
+    # 80% entrenamiento
+    # 20% prueba
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
-    # Create and fit the model
+    # Crear modelo de regresión lineal
     model = LinearRegression()
+
+    # Entrenar modelo con datos de entrenamiento
     model.fit(X_train, y_train)
 
-    # Predictions
+    # Hacer predicciones con los datos de prueba
     predictions = model.predict(X_test)
 
-    # Calculate metrics
+    # Calcular métricas de evaluación
     mae = mean_absolute_error(y_test, predictions)
     rmse = np.sqrt(mean_squared_error(y_test, predictions))
     r2 = r2_score(y_test, predictions)
 
     return predictions, y_test, mae, rmse, r2
 
+
+# ==========================
+# FUNCIÓN PARA VISUALIZAR RESULTADOS
+# ==========================
+
 def visualize_results(y_test, predictions):
+    """
+    Muestra una gráfica comparando valores reales vs predichos.
+    """
+
     plt.figure(figsize=(10, 6))
-    sns.regplot(x=y_test, y=predictions, scatter_kws={'color':'blue'}, line_kws={'color':'red'})
-    plt.xlabel('Actual Values')
-    plt.ylabel('Predicted Values')
-    plt.title('Regression Results')
+
+    # regplot dibuja puntos y línea de tendencia
+    sns.regplot(
+        x=y_test,
+        y=predictions,
+        scatter_kws={'color': 'blue'},
+        line_kws={'color': 'red'}
+    )
+
+    plt.xlabel('Valores Reales')
+    plt.ylabel('Valores Predichos')
+    plt.title('Resultados de la Regresión')
     plt.show()
 
-if __name__ == '__main__':
-    print("Select Dataset:")
-    print("1: home-rental.csv")
-    print("2: ice-cream.csv")
-    choice = input("Enter your choice (1 or 2): ")
+
+# ==========================
+# FUNCIÓN PRINCIPAL
+# ==========================
+
+def run_model(choice):
+    """
+    Ejecuta todo el proceso cuando el usuario selecciona un dataset.
+    """
 
     try:
+        # Cargar datos
         data = load_data(choice)
-        # show what we've loaded
-        print("\nColumns in dataset:", list(data.columns))
+
+        # Mostrar columnas disponibles
+        print("\nColumnas del dataset:", list(data.columns))
+
         numeric = data.select_dtypes(include=[np.number]).columns.tolist()
-        print("Numeric columns (candidates for regression):", numeric)
+        print("Columnas numéricas:", numeric)
 
-        # auto-pick target = last numeric
-        target = None
-        if numeric:
-            target = numeric[-1]
-            print(f"Using '{target}' as target column and the remaining numeric columns as features.")
+        # Usar última columna numérica como variable objetivo
+        target = numeric[-1]
+        print(f"Usando '{target}' como variable objetivo.")
 
+        # Ejecutar regresión
         predictions, y_test, mae, rmse, r2 = perform_regression(data, target_column=target)
 
+        # Mostrar métricas
         print(f"\nMean Absolute Error: {mae}")
         print(f"Root Mean Squared Error: {rmse}")
         print(f"R² score: {r2}\n")
 
+        # Mostrar gráfica
         visualize_results(y_test, predictions)
+
     except Exception as e:
-        print(f"Error: {e}")
+        messagebox.showerror("Error", str(e))
+
+
+# ==========================
+# INTERFAZ GRÁFICA
+# ==========================
+
+# Crear ventana principal
+root = tk.Tk()
+root.title("Modelo de Regresión Lineal")
+root.geometry("300x200")
+
+# Etiqueta
+label = tk.Label(root, text="Selecciona el Dataset", font=("Arial", 12))
+label.pack(pady=10)
+
+# Botón para dataset Home Rental
+btn_home = tk.Button(
+    root,
+    text="Home Rental",
+    command=lambda: run_model('home')
+)
+btn_home.pack(pady=5)
+
+# Botón para dataset Ice Cream
+btn_ice = tk.Button(
+    root,
+    text="Ice Cream",
+    command=lambda: run_model('ice')
+)
+btn_ice.pack(pady=5)
+
+# Ejecutar interfaz
+root.mainloop()
